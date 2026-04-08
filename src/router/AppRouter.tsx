@@ -1,0 +1,74 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { ProtectedRoute } from '../components/layout/ProtectedRoute'
+import { Spinner } from '../components/ui/Spinner'
+
+import { LoginPage } from '../pages/auth/LoginPage'
+import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
+
+import { ResidentDashboard } from '../pages/resident/ResidentDashboard'
+import { MyAttendancePage } from '../pages/resident/MyAttendancePage'
+
+import { SupervisorDashboard } from '../pages/supervisor/SupervisorDashboard'
+import { MarkAttendancePage } from '../pages/supervisor/MarkAttendancePage'
+import { SessionHistoryPage } from '../pages/supervisor/SessionHistoryPage'
+
+import { AdminDashboard } from '../pages/admin/AdminDashboard'
+import { ManageUsersPage } from '../pages/admin/ManageUsersPage'
+import { ManageSessionsPage } from '../pages/admin/ManageSessionsPage'
+import { AttendanceReportsPage } from '../pages/admin/AttendanceReportsPage'
+
+import { SkillsPlaceholderPage } from '../pages/skills/SkillsPlaceholderPage'
+
+function RoleRedirect() {
+  const { appUser, loading, session } = useAuth()
+
+  if (loading || (session && !appUser)) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-brand">
+        <Spinner className="h-10 w-10" />
+      </div>
+    )
+  }
+
+  if (!appUser) return <Navigate to="/login" replace />
+  if (appUser.role === 'admin') return <Navigate to="/admin" replace />
+  if (appUser.role === 'supervisor') return <Navigate to="/supervisor" replace />
+  return <Navigate to="/resident" replace />
+}
+
+export function AppRouter() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        {/* Root redirect */}
+        <Route path="/" element={<RoleRedirect />} />
+
+        {/* Resident */}
+        <Route path="/resident" element={<ProtectedRoute allowedRoles={['resident']}><ResidentDashboard /></ProtectedRoute>} />
+        <Route path="/resident/attendance" element={<ProtectedRoute allowedRoles={['resident']}><MyAttendancePage /></ProtectedRoute>} />
+        <Route path="/resident/skills" element={<ProtectedRoute allowedRoles={['resident']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+
+        {/* Supervisor */}
+        <Route path="/supervisor" element={<ProtectedRoute allowedRoles={['supervisor']}><SupervisorDashboard /></ProtectedRoute>} />
+        <Route path="/supervisor/sessions" element={<ProtectedRoute allowedRoles={['supervisor']}><SessionHistoryPage /></ProtectedRoute>} />
+        <Route path="/supervisor/session/:sessionId/mark" element={<ProtectedRoute allowedRoles={['supervisor']}><MarkAttendancePage /></ProtectedRoute>} />
+        <Route path="/supervisor/skills" element={<ProtectedRoute allowedRoles={['supervisor']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+
+        {/* Admin */}
+        <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><ManageUsersPage /></ProtectedRoute>} />
+        <Route path="/admin/sessions" element={<ProtectedRoute allowedRoles={['admin']}><ManageSessionsPage /></ProtectedRoute>} />
+        <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AttendanceReportsPage /></ProtectedRoute>} />
+        <Route path="/admin/skills" element={<ProtectedRoute allowedRoles={['admin']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
