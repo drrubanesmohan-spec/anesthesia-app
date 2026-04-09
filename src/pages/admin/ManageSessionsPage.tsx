@@ -8,6 +8,7 @@ import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAuth } from '../../context/AuthContext'
 import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
+import { SupervisorAssignments } from '../../components/assignments/SupervisorAssignments'
 import type { Session } from '../../types/domain'
 import type { Hospital } from '../../hooks/useHospitals'
 import { Calendar, Pencil, Check, X, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
@@ -171,6 +172,7 @@ export function ManageSessionsPage() {
   return (
     <AppShell title="Hospital">
       <HospitalsList />
+      <SupervisorAssignments />
       <ResidentAssignments />
 
       {loading ? (

@@ -1,0 +1,198 @@
+import { useEffect, useState, useCallback } from 'react'
+import { supabase } from '../../lib/supabaseClient'
+import { useHospitals } from '../../hooks/useHospitals'
+import { useAuth } from '../../context/AuthContext'
+import { Spinner } from '../ui/Spinner'
+import { ChevronDown, ChevronUp } from 'lucide-react'
+import type { Hospital } from '../../hooks/useHospitals'
+
+interface Supervisor {
+  id: string
+  full_name: string
+}
+
+interface SupervisorAssignment {
+  supervisor_id: string
+  hospital_id: number | null
+  department_id: string | null
+}
+
+function SupervisorRow({
+  supervisor,
+  index,
+  hospitals,
+  assignments,
+  onAssign,
+}: {
+  supervisor: Supervisor
+  index: number
+  hospitals: Hospital[]
+  assignments: SupervisorAssignment[]
+  onAssign: (supervisorId: string, hospitalId: number, deptId: string) => Promise<void>
+}) {
+  const current = assignments.find(a => a.supervisor_id === supervisor.id)
+  const [selHospital, setSelHospital] = useState<number | ''>(current?.hospital_id ?? '')
+  const [selDept, setSelDept] = useState<string>(current?.department_id ?? '')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    setSelHospital(current?.hospital_id ?? '')
+    setSelDept(current?.department_id ?? '')
+  }, [current?.hospital_id, current?.department_id])
+
+  const depts = selHospital
+    ? (hospitals.find(h => h.id === selHospital)?.departments ?? [])
+    : []
+
+  const currentHospital = hospitals.find(h => h.id === current?.hospital_id)
+  const currentDept = currentHospital?.departments.find(d => d.id === current?.department_id)
+
+  function handleHospitalChange(val: string) {
+    setSelHospital(val ? Number(val) : '')
+    setSelDept('')
+  }
+
+  async function handleSave() {
+    if (!selHospital || !selDept) return
+    setSaving(true)
+    await onAssign(supervisor.id, selHospital as number, selDept)
+    setSaving(false)
+  }
+
+  const isDirty =
+    String(selHospital) !== String(current?.hospital_id ?? '') ||
+    selDept !== (current?.department_id ?? '')
+
+  return (
+    <div className="px-4 py-3 border-b border-slate-700/50 last:border-0">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs text-slate-500 w-6 shrink-0">{index + 1}</span>
+        <span className="text-sm text-white font-medium flex-1">{supervisor.full_name}</span>
+        {currentHospital ? (
+          <span className="text-xs text-slate-500 truncate max-w-[130px]">
+            {currentDept ? `${currentHospital.name} / ${currentDept.name}` : currentHospital.name}
+          </span>
+        ) : (
+          <span className="text-xs text-slate-600 italic">Unassigned</span>
+        )}
+      </div>
+      <div className="ml-6 flex items-center gap-2 flex-wrap">
+        <select
+          value={selHospital}
+          onChange={e => handleHospitalChange(e.target.value)}
+          className="flex-1 min-w-[110px] bg-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500"
+        >
+          <option value="">Hospital</option>
+          {hospitals.map(h => (
+            <option key={h.id} value={h.id}>{h.name}</option>
+          ))}
+        </select>
+        <select
+          value={selDept}
+          onChange={e => setSelDept(e.target.value)}
+          disabled={!selHospital || depts.length === 0}
+          className="flex-1 min-w-[110px] bg-slate-700 text-xs text-white rounded px-2 py-1.5 outline-none focus:ring-1 focus:ring-purple-500 disabled:opacity-40"
+        >
+          <option value="">Department</option>
+          {depts.map(d => (
+            <option key={d.id} value={d.id}>{d.name}</option>
+          ))}
+        </select>
+        {isDirty && selHospital && selDept && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="shrink-0 rounded px-3 py-1.5 text-xs font-medium bg-purple-600 hover:bg-purple-500 text-white disabled:opacity-50"
+          >
+            {saving ? '...' : 'Save'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function SupervisorAssignments() {
+  const { appUser } = useAuth()
+  const { hospitals, fetchHospitals } = useHospitals()
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([])
+  const [assignments, setAssignments] = useState<SupervisorAssignment[]>([])
+  const [loadingSupervisors, setLoadingSupervisors] = useState(true)
+  const [collapsed, setCollapsed] = useState(false)
+
+  const fetchAssignments = useCallback(async () => {
+    const { data } = await supabase
+      .from('supervisor_assignments')
+      .select('supervisor_id, hospital_id, department_id')
+    setAssignments((data ?? []) as SupervisorAssignment[])
+  }, [])
+
+  useEffect(() => {
+    fetchHospitals()
+    fetchAssignments()
+    supabase
+      .from('profiles')
+      .select('id, full_name')
+      .eq('role', 'supervisor')
+      .order('full_name')
+      .then(({ data }) => {
+        setSupervisors((data ?? []) as Supervisor[])
+        setLoadingSupervisors(false)
+      })
+  }, [fetchHospitals, fetchAssignments])
+
+  async function handleAssign(supervisorId: string, hospitalId: number, deptId: string) {
+    if (!appUser) return
+    const record = {
+      supervisor_id: supervisorId,
+      hospital_id: hospitalId,
+      department_id: deptId,
+      assigned_by: appUser.id,
+      assigned_at: new Date().toISOString(),
+    }
+    await supabase.from('supervisor_assignments').upsert(record)
+    setAssignments(prev => {
+      const exists = prev.find(a => a.supervisor_id === supervisorId)
+      if (exists) return prev.map(a => a.supervisor_id === supervisorId ? { ...a, ...record } : a)
+      return [...prev, record]
+    })
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
+      <button
+        onClick={() => setCollapsed(v => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 border-b border-slate-700 hover:bg-slate-700/20 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-purple-400">Supervisor Assignments</span>
+          <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-400">
+            {supervisors.length}
+          </span>
+        </div>
+        {collapsed
+          ? <ChevronDown size={16} className="text-slate-500" />
+          : <ChevronUp size={16} className="text-slate-500" />}
+      </button>
+
+      {!collapsed && (
+        loadingSupervisors ? (
+          <div className="flex justify-center py-4"><Spinner /></div>
+        ) : supervisors.length === 0 ? (
+          <p className="px-4 py-3 text-xs text-slate-500">No supervisors found</p>
+        ) : (
+          supervisors.map((s, i) => (
+            <SupervisorRow
+              key={s.id}
+              supervisor={s}
+              index={i}
+              hospitals={hospitals}
+              assignments={assignments}
+              onAssign={handleAssign}
+            />
+          ))
+        )
+      )}
+    </div>
+  )
+}
