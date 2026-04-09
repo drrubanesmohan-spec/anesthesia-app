@@ -7,6 +7,7 @@ import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
+import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
 import { Calendar, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Hospital } from '../../hooks/useHospitals'
 
@@ -78,6 +79,7 @@ export function SupervisorDashboard() {
   return (
     <AppShell title="Hospital" showLogout>
       <HospitalsList />
+      <ResidentAssignments />
 
       {loading ? (
         <div className="flex justify-center pt-8"><Spinner /></div>

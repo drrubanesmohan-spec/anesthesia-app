@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState'
 import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAuth } from '../../context/AuthContext'
+import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
 import type { Session } from '../../types/domain'
 import type { Hospital } from '../../hooks/useHospitals'
 import { Calendar, Pencil, Check, X, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
@@ -170,6 +171,7 @@ export function ManageSessionsPage() {
   return (
     <AppShell title="Hospital">
       <HospitalsList />
+      <ResidentAssignments />
 
       {loading ? (
         <div className="flex justify-center pt-8"><Spinner /></div>
