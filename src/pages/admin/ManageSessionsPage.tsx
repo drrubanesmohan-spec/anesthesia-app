@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
 import { SessionCard } from '../../components/attendance/SessionCard'
 import { SessionFormModal } from '../../components/attendance/SessionFormModal'
@@ -8,26 +8,130 @@ import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
 import { useAuth } from '../../context/AuthContext'
 import type { Session } from '../../types/domain'
-import { Calendar, Pencil, Check, X } from 'lucide-react'
+import type { Hospital } from '../../hooks/useHospitals'
+import { Calendar, Pencil, Check, X, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
+
+function HospitalRow({
+  hospital,
+  onRename,
+  onAddDept,
+  onDeleteDept,
+}: {
+  hospital: Hospital
+  onRename: (id: number, name: string) => Promise<void>
+  onAddDept: (hospitalId: number, name: string) => Promise<void>
+  onDeleteDept: (deptId: string, hospitalId: number) => Promise<void>
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [draft, setDraft] = useState(hospital.name)
+  const [addingDept, setAddingDept] = useState(false)
+  const [deptDraft, setDeptDraft] = useState('')
+  const deptInputRef = useRef<HTMLInputElement>(null)
+
+  async function saveName() {
+    if (draft.trim()) await onRename(hospital.id, draft.trim())
+    setEditingName(false)
+  }
+
+  function openAddDept() {
+    setExpanded(true)
+    setAddingDept(true)
+    setTimeout(() => deptInputRef.current?.focus(), 50)
+  }
+
+  async function saveDept() {
+    if (deptDraft.trim()) {
+      await onAddDept(hospital.id, deptDraft.trim())
+      setDeptDraft('')
+    }
+    setAddingDept(false)
+  }
+
+  return (
+    <div>
+      {/* Hospital row */}
+      <div className="flex items-center px-4 py-2.5 gap-2">
+        <button onClick={() => setExpanded(v => !v)} className="text-slate-500 hover:text-slate-300 shrink-0">
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        </button>
+        <span className="text-xs text-slate-500 w-5 shrink-0">{hospital.id}</span>
+
+        {editingName ? (
+          <>
+            <input
+              className="flex-1 bg-slate-700 text-sm text-white rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') setEditingName(false) }}
+              autoFocus
+            />
+            <button onClick={saveName} className="text-emerald-400 hover:text-emerald-300"><Check size={14} /></button>
+            <button onClick={() => setEditingName(false)} className="text-slate-500 hover:text-slate-300"><X size={14} /></button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-sm text-white">{hospital.name}</span>
+            <span className="text-xs text-slate-600 mr-1">{hospital.departments.length} dept{hospital.departments.length !== 1 ? 's' : ''}</span>
+            <button onClick={() => { setEditingName(true); setDraft(hospital.name) }} className="text-slate-500 hover:text-slate-300">
+              <Pencil size={13} />
+            </button>
+            <button onClick={openAddDept} className="text-slate-500 hover:text-emerald-400">
+              <Plus size={14} />
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* Departments dropdown */}
+      {expanded && (
+        <div className="ml-10 border-l border-slate-700 pl-3 pb-1">
+          {hospital.departments.length === 0 && !addingDept && (
+            <p className="text-xs text-slate-600 py-1">No departments yet</p>
+          )}
+          {hospital.departments.map(d => (
+            <div key={d.id} className="flex items-center gap-2 py-1">
+              <span className="text-xs text-slate-400 flex-1">{d.name}</span>
+              <button
+                onClick={() => onDeleteDept(d.id, hospital.id)}
+                className="text-slate-600 hover:text-red-400"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          {addingDept && (
+            <div className="flex items-center gap-2 py-1">
+              <input
+                ref={deptInputRef}
+                className="flex-1 bg-slate-700 text-xs text-white rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="Department name"
+                value={deptDraft}
+                onChange={e => setDeptDraft(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveDept(); if (e.key === 'Escape') setAddingDept(false) }}
+              />
+              <button onClick={saveDept} className="text-emerald-400 hover:text-emerald-300"><Check size={13} /></button>
+              <button onClick={() => setAddingDept(false)} className="text-slate-500 hover:text-slate-300"><X size={13} /></button>
+            </div>
+          )}
+          {!addingDept && (
+            <button
+              onClick={openAddDept}
+              className="flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-400 py-1"
+            >
+              <Plus size={11} /> Add department
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function HospitalsList() {
-  const { hospitals, loading, fetchHospitals, updateHospital } = useHospitals()
-  const [editingId, setEditingId] = useState<number | null>(null)
-  const [draft, setDraft] = useState('')
+  const { hospitals, loading, fetchHospitals, updateHospital, addDepartment, deleteDepartment } = useHospitals()
 
   useEffect(() => { fetchHospitals() }, [fetchHospitals])
-
-  function startEdit(id: number, name: string) {
-    setEditingId(id)
-    setDraft(name)
-  }
-
-  async function save(id: number) {
-    if (draft.trim()) await updateHospital(id, draft.trim())
-    setEditingId(null)
-  }
-
-  function cancel() { setEditingId(null) }
 
   if (loading) return <div className="flex justify-center py-4"><Spinner /></div>
 
@@ -40,35 +144,13 @@ function HospitalsList() {
         </span>
       </div>
       {hospitals.map((h, i) => (
-        <div
-          key={h.id}
-          className={`flex items-center px-4 py-2.5 gap-3 ${i !== hospitals.length - 1 ? 'border-b border-slate-700/50' : ''}`}
-        >
-          <span className="text-xs text-slate-500 w-5 shrink-0">{h.id}</span>
-          {editingId === h.id ? (
-            <>
-              <input
-                className="flex-1 bg-slate-700 text-sm text-white rounded px-2 py-1 outline-none focus:ring-1 focus:ring-emerald-500"
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') save(h.id); if (e.key === 'Escape') cancel() }}
-                autoFocus
-              />
-              <button onClick={() => save(h.id)} className="text-emerald-400 hover:text-emerald-300">
-                <Check size={15} />
-              </button>
-              <button onClick={cancel} className="text-slate-500 hover:text-slate-300">
-                <X size={15} />
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="flex-1 text-sm text-white">{h.name}</span>
-              <button onClick={() => startEdit(h.id, h.name)} className="text-slate-500 hover:text-slate-300">
-                <Pencil size={13} />
-              </button>
-            </>
-          )}
+        <div key={h.id} className={i !== hospitals.length - 1 ? 'border-b border-slate-700/50' : ''}>
+          <HospitalRow
+            hospital={h}
+            onRename={updateHospital}
+            onAddDept={addDepartment}
+            onDeleteDept={deleteDepartment}
+          />
         </div>
       ))}
     </div>
@@ -99,14 +181,8 @@ export function ManageSessionsPage() {
             <div key={s.id}>
               <SessionCard session={s} onClick={() => openEdit(s)} />
               <div className="mt-1.5 flex gap-2 px-1">
-                <button
-                  onClick={() => openEdit(s)}
-                  className="text-xs text-slate-500 hover:text-slate-300"
-                >Edit</button>
-                <button
-                  onClick={() => deleteSession(s.id)}
-                  className="text-xs text-red-500 hover:text-red-400"
-                >Delete</button>
+                <button onClick={() => openEdit(s)} className="text-xs text-slate-500 hover:text-slate-300">Edit</button>
+                <button onClick={() => deleteSession(s.id)} className="text-xs text-red-500 hover:text-red-400">Delete</button>
               </div>
             </div>
           ))}
