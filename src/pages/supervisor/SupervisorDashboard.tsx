@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { AppShell } from '../../components/layout/AppShell'
 import { SessionCard } from '../../components/attendance/SessionCard'
+import { DailyAttendance } from '../../components/attendance/DailyAttendance'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useSessions } from '../../hooks/useSessions'
 import { useHospitals } from '../../hooks/useHospitals'
 import { ResidentAssignments } from '../../components/assignments/ResidentAssignments'
+import { supabase } from '../../lib/supabaseClient'
 import { Calendar, ChevronDown, ChevronRight } from 'lucide-react'
 import type { Hospital } from '../../hooks/useHospitals'
 
@@ -68,9 +70,18 @@ export function SupervisorDashboard() {
   const { appUser } = useAuth()
   const navigate = useNavigate()
   const { sessions, loading, fetchForSupervisor } = useSessions()
+  const [supervisorDeptId, setSupervisorDeptId] = useState<string | null | undefined>(undefined)
 
   useEffect(() => {
-    if (appUser) fetchForSupervisor(appUser.id)
+    if (appUser) {
+      fetchForSupervisor(appUser.id)
+      supabase
+        .from('supervisor_assignments')
+        .select('department_id')
+        .eq('supervisor_id', appUser.id)
+        .single()
+        .then(({ data }) => setSupervisorDeptId(data?.department_id ?? null))
+    }
   }, [appUser, fetchForSupervisor])
 
   const upcoming = sessions.filter(s => !s.is_cancelled && s.scheduled_date >= new Date().toISOString().slice(0, 10))
@@ -79,6 +90,7 @@ export function SupervisorDashboard() {
   return (
     <AppShell title="Hospital" showLogout>
       <HospitalsList />
+      <DailyAttendance supervisorDeptId={supervisorDeptId ?? null} />
       <ResidentAssignments />
 
       {loading ? (
