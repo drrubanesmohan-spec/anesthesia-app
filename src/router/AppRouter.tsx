@@ -19,6 +19,7 @@ import { ManageSessionsPage } from '../pages/admin/ManageSessionsPage'
 import { AttendanceReportsPage } from '../pages/admin/AttendanceReportsPage'
 
 import { SkillsPlaceholderPage } from '../pages/skills/SkillsPlaceholderPage'
+import { AssignmentLogPage } from '../pages/shared/AssignmentLogPage'
 
 function RoleRedirect() {
   const { appUser, loading, session } = useAuth()
@@ -58,6 +59,7 @@ export function AppRouter() {
         <Route path="/supervisor/sessions" element={<ProtectedRoute allowedRoles={['supervisor']}><SessionHistoryPage /></ProtectedRoute>} />
         <Route path="/supervisor/session/:sessionId/mark" element={<ProtectedRoute allowedRoles={['supervisor']}><MarkAttendancePage /></ProtectedRoute>} />
         <Route path="/supervisor/skills" element={<ProtectedRoute allowedRoles={['supervisor']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+        <Route path="/supervisor/logs" element={<ProtectedRoute allowedRoles={['supervisor']}><AssignmentLogPage /></ProtectedRoute>} />
 
         {/* Admin */}
         <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
@@ -65,6 +67,7 @@ export function AppRouter() {
         <Route path="/admin/sessions" element={<ProtectedRoute allowedRoles={['admin']}><ManageSessionsPage /></ProtectedRoute>} />
         <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['admin']}><AttendanceReportsPage /></ProtectedRoute>} />
         <Route path="/admin/skills" element={<ProtectedRoute allowedRoles={['admin']}><SkillsPlaceholderPage /></ProtectedRoute>} />
+        <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><AssignmentLogPage /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />

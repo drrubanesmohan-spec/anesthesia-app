@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Calendar, Stethoscope, Users, ClipboardList, BarChart2 } from 'lucide-react'
+import { Home, Calendar, Stethoscope, Users, ClipboardList, BarChart2, ScrollText } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { cn } from '../../lib/utils'
 
@@ -12,6 +12,7 @@ const residentTabs = [
 const supervisorTabs = [
   { to: '/supervisor', icon: Home, label: 'Home', end: true },
   { to: '/supervisor/sessions', icon: Calendar, label: 'Hospital' },
+  { to: '/supervisor/logs', icon: ScrollText, label: 'Logs' },
   { to: '/supervisor/skills', icon: Stethoscope, label: 'Skills' },
 ]
 
@@ -20,6 +21,7 @@ const adminTabs = [
   { to: '/admin/users', icon: Users, label: 'Users' },
   { to: '/admin/sessions', icon: ClipboardList, label: 'Hospital' },
   { to: '/admin/reports', icon: BarChart2, label: 'Reports' },
+  { to: '/admin/logs', icon: ScrollText, label: 'Logs' },
 ]
 
 export function BottomTabBar() {
