@@ -112,23 +112,46 @@ export function ResidentAssignments() {
   const { appUser } = useAuth()
   const { hospitals, fetchHospitals } = useHospitals()
   const { assignments, fetchAssignments, assignResident } = useAssignments()
-  const [residents, setResidents] = useState<Resident[]>([])
+  const [allResidents, setAllResidents] = useState<Resident[]>([])
+  const [supervisorDeptId, setSupervisorDeptId] = useState<string | null>(null)
   const [loadingResidents, setLoadingResidents] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
+
+  const isSupervisor = appUser?.role === 'supervisor'
 
   useEffect(() => {
     fetchHospitals()
     fetchAssignments()
+
+    // If supervisor, fetch their own department assignment first
+    if (isSupervisor && appUser) {
+      supabase
+        .from('supervisor_assignments')
+        .select('department_id')
+        .eq('supervisor_id', appUser.id)
+        .single()
+        .then(({ data }) => {
+          setSupervisorDeptId(data?.department_id ?? null)
+        })
+    }
+
     supabase
       .from('profiles')
       .select('id, full_name')
       .eq('role', 'resident')
       .order('full_name')
       .then(({ data }) => {
-        setResidents((data ?? []) as Resident[])
+        setAllResidents((data ?? []) as Resident[])
         setLoadingResidents(false)
       })
-  }, [fetchHospitals, fetchAssignments])
+  }, [fetchHospitals, fetchAssignments, isSupervisor, appUser])
+
+  // Admins see all residents; supervisors see only those in their department
+  const visibleResidents = isSupervisor
+    ? allResidents.filter(r =>
+        assignments.find(a => a.resident_id === r.id)?.department_id === supervisorDeptId
+      )
+    : allResidents
 
   async function handleAssign(
     residentId: string,
@@ -140,6 +163,18 @@ export function ResidentAssignments() {
     await assignResident(residentId, hospitalId, deptId, appUser.id, current)
   }
 
+  // Supervisors with no department assigned yet
+  if (isSupervisor && !loadingResidents && supervisorDeptId === null) {
+    return (
+      <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
+        <div className="px-4 py-3 border-b border-slate-700">
+          <span className="text-sm font-semibold text-sky-400">Resident Assignments</span>
+        </div>
+        <p className="px-4 py-3 text-xs text-slate-500">You have not been assigned to a department yet.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden mb-4">
       <button
@@ -149,7 +184,7 @@ export function ResidentAssignments() {
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-sky-400">Resident Assignments</span>
           <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-sky-500/20 text-sky-400">
-            {residents.length}
+            {visibleResidents.length}
           </span>
         </div>
         {collapsed
@@ -160,10 +195,12 @@ export function ResidentAssignments() {
       {!collapsed && (
         loadingResidents ? (
           <div className="flex justify-center py-4"><Spinner /></div>
-        ) : residents.length === 0 ? (
-          <p className="px-4 py-3 text-xs text-slate-500">No residents found</p>
+        ) : visibleResidents.length === 0 ? (
+          <p className="px-4 py-3 text-xs text-slate-500">
+            {isSupervisor ? 'No residents assigned to your department.' : 'No residents found.'}
+          </p>
         ) : (
-          residents.map((r, i) => (
+          visibleResidents.map((r, i) => (
             <ResidentRow
               key={r.id}
               resident={r}
