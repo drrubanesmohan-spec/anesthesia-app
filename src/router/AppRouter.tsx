@@ -9,7 +9,7 @@ import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
 import { ResidentDashboard } from '../pages/resident/ResidentDashboard'
 import { MyAttendancePage } from '../pages/resident/MyAttendancePage'
 
-import { SupervisorDashboard } from '../pages/supervisor/SupervisorDashboard'
+import { SupervisorHome } from '../pages/supervisor/SupervisorHome'
 import { MarkAttendancePage } from '../pages/supervisor/MarkAttendancePage'
 import { SessionHistoryPage } from '../pages/supervisor/SessionHistoryPage'
 
@@ -55,7 +55,7 @@ export function AppRouter() {
         <Route path="/resident/skills" element={<ProtectedRoute allowedRoles={['resident']}><SkillsPlaceholderPage /></ProtectedRoute>} />
 
         {/* Supervisor */}
-        <Route path="/supervisor" element={<ProtectedRoute allowedRoles={['supervisor']}><SupervisorDashboard /></ProtectedRoute>} />
+        <Route path="/supervisor" element={<ProtectedRoute allowedRoles={['supervisor']}><SupervisorHome /></ProtectedRoute>} />
         <Route path="/supervisor/sessions" element={<ProtectedRoute allowedRoles={['supervisor']}><SessionHistoryPage /></ProtectedRoute>} />
         <Route path="/supervisor/session/:sessionId/mark" element={<ProtectedRoute allowedRoles={['supervisor']}><MarkAttendancePage /></ProtectedRoute>} />
         <Route path="/supervisor/skills" element={<ProtectedRoute allowedRoles={['supervisor']}><SkillsPlaceholderPage /></ProtectedRoute>} />
