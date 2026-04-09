@@ -1,87 +1,88 @@
 import { useEffect, useState } from 'react'
 import { AppShell } from '../../components/layout/AppShell'
-import { Card } from '../../components/ui/Card'
-import { Badge } from '../../components/ui/Badge'
-import { Button } from '../../components/ui/Button'
 import { Spinner } from '../../components/ui/Spinner'
-import { EmptyState } from '../../components/ui/EmptyState'
 import { supabase } from '../../lib/supabaseClient'
 import type { UserRole } from '../../types/auth'
-import { Users } from 'lucide-react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Profile {
   id: string
   full_name: string
   role: UserRole
-  year: number | null
-  department: string | null
 }
 
-const roleColors: Record<UserRole, string> = {
-  resident: 'bg-sky-500/20 text-sky-400',
-  supervisor: 'bg-purple-500/20 text-purple-400',
-  admin: 'bg-amber-500/20 text-amber-400',
-}
+const sections: { role: UserRole; label: string; color: string; count_color: string }[] = [
+  { role: 'admin', label: 'Admins', color: 'text-amber-400', count_color: 'bg-amber-500/20 text-amber-400' },
+  { role: 'supervisor', label: 'Supervisors', color: 'text-purple-400', count_color: 'bg-purple-500/20 text-purple-400' },
+  { role: 'resident', label: 'Residents', color: 'text-sky-400', count_color: 'bg-sky-500/20 text-sky-400' },
+]
 
 export function ManageUsersPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
-  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [collapsed, setCollapsed] = useState<Record<UserRole, boolean>>({ admin: false, supervisor: false, resident: false })
 
-  async function fetchUsers() {
-    setLoading(true)
-    const { data } = await supabase
+  useEffect(() => {
+    supabase
       .from('profiles')
-      .select('id, full_name, role, year, department')
+      .select('id, full_name, role')
       .order('full_name')
-    setUsers((data ?? []) as Profile[])
-    setLoading(false)
+      .then(({ data }) => {
+        setUsers((data ?? []) as Profile[])
+        setLoading(false)
+      })
+  }, [])
+
+  function toggle(role: UserRole) {
+    setCollapsed(prev => ({ ...prev, [role]: !prev[role] }))
   }
-
-  useEffect(() => { fetchUsers() }, [])
-
-  async function changeRole(id: string, role: UserRole) {
-    setUpdatingId(id)
-    await supabase.from('profiles').update({ role }).eq('id', id)
-    setUsers(prev => prev.map(u => u.id === id ? { ...u, role } : u))
-    setUpdatingId(null)
-  }
-
-  const roles: UserRole[] = ['resident', 'supervisor', 'admin']
 
   return (
-    <AppShell title="Manage Users">
+    <AppShell title="Users">
       {loading ? (
         <div className="flex justify-center pt-16"><Spinner /></div>
-      ) : users.length === 0 ? (
-        <EmptyState icon={Users} title="No users yet" description="Users appear here after they've been invited." />
       ) : (
         <div className="space-y-3">
-          {users.map(u => (
-            <Card key={u.id}>
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium text-white">{u.full_name}</p>
-                  {u.department && <p className="text-xs text-slate-500">{u.department}</p>}
-                  {u.year && <p className="text-xs text-slate-500">Year {u.year}</p>}
-                </div>
-                <Badge className={roleColors[u.role]}>{u.role}</Badge>
+          {sections.map(({ role, label, color, count_color }) => {
+            const group = users.filter(u => u.role === role)
+            const isCollapsed = collapsed[role]
+            return (
+              <div key={role} className="rounded-2xl border border-slate-700 bg-brand-light overflow-hidden">
+                {/* Section header */}
+                <button
+                  onClick={() => toggle(role)}
+                  className="flex w-full items-center justify-between px-4 py-3 hover:bg-slate-700/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${color}`}>{label}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${count_color}`}>
+                      {group.length}
+                    </span>
+                  </div>
+                  {isCollapsed ? <ChevronDown size={16} className="text-slate-500" /> : <ChevronUp size={16} className="text-slate-500" />}
+                </button>
+
+                {/* User list */}
+                {!isCollapsed && (
+                  <div className="border-t border-slate-700">
+                    {group.length === 0 ? (
+                      <p className="px-4 py-3 text-xs text-slate-500">None</p>
+                    ) : (
+                      group.map((u, i) => (
+                        <div
+                          key={u.id}
+                          className={`flex items-center px-4 py-2.5 ${i !== group.length - 1 ? 'border-b border-slate-700/50' : ''}`}
+                        >
+                          <span className="text-xs text-slate-500 w-6 shrink-0">{i + 1}</span>
+                          <span className="text-sm text-white">{u.full_name}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="mt-3 flex gap-2 flex-wrap">
-                {roles.filter(r => r !== u.role).map(r => (
-                  <Button
-                    key={r}
-                    size="sm"
-                    variant="secondary"
-                    loading={updatingId === u.id}
-                    onClick={() => changeRole(u.id, r)}
-                  >
-                    Make {r}
-                  </Button>
-                ))}
-              </div>
-            </Card>
-          ))}
+            )
+          })}
         </div>
       )}
     </AppShell>
